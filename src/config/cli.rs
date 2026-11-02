@@ -50,6 +50,7 @@ pub enum ProviderType {
     Gemini,
     Xai,
     Vercel,
+    Pi,
 }
 
 impl FromStr for ProviderType {
@@ -67,6 +68,7 @@ impl FromStr for ProviderType {
             "gemini" => Ok(ProviderType::Gemini),
             "xai" => Ok(ProviderType::Xai),
             "vercel" => Ok(ProviderType::Vercel),
+            "pi" => Ok(ProviderType::Pi),
             _ => Err(format!("Unknown provider: {}", s)),
         }
     }
@@ -155,6 +157,13 @@ pub enum Commands {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_pi_provider_parses() {
+        let cli = Cli::try_parse_from(["lumen", "-p", "pi", "draft"]).unwrap();
+        assert_eq!(cli.provider, Some(ProviderType::Pi));
+        assert_eq!("pi".parse::<ProviderType>().unwrap(), ProviderType::Pi);
+    }
 
     #[test]
     fn test_vcs_git_parses() {

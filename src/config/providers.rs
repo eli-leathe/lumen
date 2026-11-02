@@ -87,6 +87,13 @@ pub const ALL_PROVIDERS: &[ProviderInfo] = &[
         default_model: "anthropic/claude-sonnet-4.5",
         env_key: "VERCEL_API_KEY",
     },
+    ProviderInfo {
+        id: "pi",
+        provider_type: ProviderType::Pi,
+        display_name: "pi (CLI)",
+        default_model: "",
+        env_key: "",
+    },
 ];
 
 impl ProviderInfo {
