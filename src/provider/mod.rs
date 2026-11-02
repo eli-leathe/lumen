@@ -1,3 +1,5 @@
+mod pi;
+
 use genai::adapter::AdapterKind;
 use genai::chat::{ChatMessage, ChatRequest};
 use genai::resolver::{AuthData, Endpoint, ServiceTargetResolver};
@@ -18,6 +20,12 @@ pub enum ProviderError {
     #[error("API request failed: {0}")]
     RequestError(#[from] reqwest::Error),
 
+    #[error("Failed to run pi (ensure it is installed and on PATH): {0}")]
+    PiIo(#[source] std::io::Error),
+
+    #[error("pi failed: {0}")]
+    PiFailed(String),
+
     #[error("No completion content in response")]
     NoCompletionChoice,
 
@@ -27,6 +35,7 @@ pub enum ProviderError {
 
 enum ProviderBackend {
     GenAI { client: Client, model: String },
+    Pi { model: String },
 }
 
 pub struct LumenProvider {
@@ -48,8 +57,20 @@ impl LumenProvider {
         model: Option<String>,
     ) -> Result<Self, LumenError> {
         let (backend, provider_name) = match provider_type {
+            ProviderType::Pi => {
+                let defaults = ProviderInfo::for_provider(provider_type);
+                (
+                    ProviderBackend::Pi {
+                        model: model.unwrap_or_else(|| defaults.default_model.to_string()),
+                    },
+                    defaults.display_name.to_string(),
+                )
+            }
             // Custom endpoint providers (OpenCode Zen, OpenRouter, Vercel) - use ServiceTargetResolver
-            ProviderType::OpencodeZen | ProviderType::Openrouter | ProviderType::Vercel | ProviderType::Groq => {
+            ProviderType::OpencodeZen
+            | ProviderType::Openrouter
+            | ProviderType::Vercel
+            | ProviderType::Groq => {
                 let defaults = ProviderInfo::for_provider(provider_type);
                 let config = match provider_type {
                     ProviderType::OpencodeZen => CustomProviderConfig {
@@ -142,6 +163,7 @@ impl LumenProvider {
 
     async fn complete(&self, prompt: AIPrompt) -> Result<String, ProviderError> {
         match &self.backend {
+            ProviderBackend::Pi { model } => pi::complete(prompt, model).await,
             ProviderBackend::GenAI { client, model } => {
                 let chat_req = ChatRequest::new(vec![
                     ChatMessage::system(prompt.system_prompt),
@@ -175,7 +197,7 @@ impl LumenProvider {
 
     fn get_model(&self) -> String {
         match &self.backend {
-            ProviderBackend::GenAI { model, .. } => model.clone(),
+            ProviderBackend::GenAI { model, .. } | ProviderBackend::Pi { model } => model.clone(),
         }
     }
 }

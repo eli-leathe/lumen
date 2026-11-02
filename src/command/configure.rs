@@ -1,3 +1,4 @@
+use crate::config::cli::ProviderType;
 use crate::config::{ProviderInfo, ALL_PROVIDERS};
 use crate::error::LumenError;
 use dirs::home_dir;
@@ -58,10 +59,14 @@ impl ConfigureCommand {
 
     /// Prompts the user for an API key if the provider requires one.
     /// Returns `None` if the user leaves the input empty (to use env var) or if the provider
-    /// is local (e.g. Ollama).
+    /// manages its own authentication (e.g. pi) or runs locally (e.g. Ollama).
     fn get_api_key(provider: &ProviderInfo) -> Result<Option<String>, LumenError> {
         if provider.env_key.is_empty() {
-            println!("\n  \x1b[2mOllama runs locally — no API key needed.\x1b[0m");
+            if provider.provider_type == ProviderType::Pi {
+                println!("\n  \x1b[2mpi uses its own credentials — run pi /login to authenticate.\x1b[0m");
+            } else {
+                println!("\n  \x1b[2mOllama runs locally — no API key needed.\x1b[0m");
+            }
             return Ok(None);
         }
 

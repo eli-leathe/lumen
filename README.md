@@ -270,6 +270,24 @@ export LUMEN_AI_MODEL="gpt-5-mini"
 | [Ollama](https://github.com/ollama/ollama) `ollama` | No (local) | [see list](https://ollama.com/library) (default: `llama3.2`) |
 | [OpenRouter](https://openrouter.ai/) `openrouter` | Yes | [see list](https://openrouter.ai/models) (default: `anthropic/claude-sonnet-4.5`) |
 | [Vercel AI Gateway](https://vercel.com/docs/ai-gateway) `vercel` | Yes | [see list](https://vercel.com/docs/ai-gateway/supported-models) (default: `anthropic/claude-sonnet-4.5`) |
+| [pi](https://pi.dev) `pi` | Managed by pi | Default: `openai-codex/gpt-6.1-terra`; override via `-m provider/model` |
+
+#### Using pi
+
+Install the [pi CLI](https://github.com/earendil-works/pi-mono/tree/main/packages/coding-agent) and ensure `pi` is on your `PATH`. Launch `pi` and use `/login` to authenticate with a subscription, or configure an API key in pi. Lumen reuses pi's credentials; no Lumen API key is needed.
+
+```bash
+# Use the default model: openai-codex/gpt-6.1-terra
+lumen -p pi draft
+lumen -p pi explain --staged
+
+# Override the model (provider/model, optionally followed by :thinking)
+lumen -p pi -m anthropic/claude-sonnet-4-5:low draft
+```
+
+Select pi in `lumen configure`, or save `{"provider": "pi"}` in your Lumen configuration. Leave the model unset to use `openai-codex/gpt-6.1-terra`.
+
+Each request runs pi in non-interactive print mode with an ephemeral session. Tools, extensions, skills, prompt templates, and context files are disabled; Lumen supplies the system prompt and sends the diff via stdin.
 
 ## Coding Agent Integrations 🔅
 
