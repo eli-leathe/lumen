@@ -35,7 +35,7 @@ pub enum ProviderError {
 
 enum ProviderBackend {
     GenAI { client: Client, model: String },
-    Pi { model: Option<String> },
+    Pi { model: String },
 }
 
 pub struct LumenProvider {
@@ -57,12 +57,15 @@ impl LumenProvider {
         model: Option<String>,
     ) -> Result<Self, LumenError> {
         let (backend, provider_name) = match provider_type {
-            ProviderType::Pi => (
-                ProviderBackend::Pi { model },
-                ProviderInfo::for_provider(provider_type)
-                    .display_name
-                    .to_string(),
-            ),
+            ProviderType::Pi => {
+                let defaults = ProviderInfo::for_provider(provider_type);
+                (
+                    ProviderBackend::Pi {
+                        model: model.unwrap_or_else(|| defaults.default_model.to_string()),
+                    },
+                    defaults.display_name.to_string(),
+                )
+            }
             // Custom endpoint providers (OpenCode Zen, OpenRouter, Vercel) - use ServiceTargetResolver
             ProviderType::OpencodeZen
             | ProviderType::Openrouter
@@ -160,7 +163,7 @@ impl LumenProvider {
 
     async fn complete(&self, prompt: AIPrompt) -> Result<String, ProviderError> {
         match &self.backend {
-            ProviderBackend::Pi { model } => pi::complete(prompt, model.as_deref()).await,
+            ProviderBackend::Pi { model } => pi::complete(prompt, model).await,
             ProviderBackend::GenAI { client, model } => {
                 let chat_req = ChatRequest::new(vec![
                     ChatMessage::system(prompt.system_prompt),
@@ -194,8 +197,7 @@ impl LumenProvider {
 
     fn get_model(&self) -> String {
         match &self.backend {
-            ProviderBackend::GenAI { model, .. } => model.clone(),
-            ProviderBackend::Pi { model } => model.clone().unwrap_or_else(|| "default".to_string()),
+            ProviderBackend::GenAI { model, .. } | ProviderBackend::Pi { model } => model.clone(),
         }
     }
 }

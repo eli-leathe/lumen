@@ -91,7 +91,7 @@ pub const ALL_PROVIDERS: &[ProviderInfo] = &[
         id: "pi",
         provider_type: ProviderType::Pi,
         display_name: "pi (CLI)",
-        default_model: "",
+        default_model: "openai-codex/gpt-6.1-terra",
         env_key: "",
     },
 ];

@@ -89,14 +89,9 @@ impl ConfigureCommand {
     /// Prompts the user for a custom model name.
     /// Returns `None` if the user accepts the default model by pressing Enter.
     fn get_model_name(provider: &ProviderInfo) -> Result<Option<String>, LumenError> {
-        let default_model = if provider.default_model.is_empty() {
-            "pi's configured default; override with provider/model"
-        } else {
-            provider.default_model
-        };
         let prompt = format!(
             "Enter model name (leave empty for default: {}):",
-            default_model
+            provider.default_model
         );
 
         let model = Text::new(&prompt)

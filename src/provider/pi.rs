@@ -6,18 +6,11 @@ use tokio::process::Command;
 use super::ProviderError;
 use crate::ai_prompt::AIPrompt;
 
-pub(super) async fn complete(
-    prompt: AIPrompt,
-    model: Option<&str>,
-) -> Result<String, ProviderError> {
+pub(super) async fn complete(prompt: AIPrompt, model: &str) -> Result<String, ProviderError> {
     run(Command::new("pi"), prompt, model).await
 }
 
-async fn run(
-    mut command: Command,
-    prompt: AIPrompt,
-    model: Option<&str>,
-) -> Result<String, ProviderError> {
+async fn run(mut command: Command, prompt: AIPrompt, model: &str) -> Result<String, ProviderError> {
     command.args([
         "--print",
         "--no-session",
@@ -28,10 +21,9 @@ async fn run(
         "--no-context-files",
         "--system-prompt",
         &prompt.system_prompt,
+        "--model",
+        model,
     ]);
-    if let Some(model) = model {
-        command.args(["--model", model]);
-    }
 
     let mut child = command
         .stdin(Stdio::piped())
@@ -70,6 +62,8 @@ async fn run(
 mod tests {
     use super::*;
 
+    const DEFAULT_MODEL: &str = "openai-codex/gpt-6.1-terra";
+
     fn prompt() -> AIPrompt {
         AIPrompt {
             system_prompt: "Output only the answer.".to_string(),
@@ -80,20 +74,31 @@ mod tests {
     #[tokio::test]
     async fn missing_executable_is_actionable() {
         let dir = tempfile::tempdir().unwrap();
-        let error = run(Command::new(dir.path().join("missing-pi")), prompt(), None)
-            .await
-            .unwrap_err();
+        let error = run(
+            Command::new(dir.path().join("missing-pi")),
+            prompt(),
+            DEFAULT_MODEL,
+        )
+        .await
+        .unwrap_err();
         assert!(matches!(error, ProviderError::PiIo(_)));
         assert!(error.to_string().contains("installed and on PATH"));
     }
 
     #[test]
-    fn provider_display_uses_pi_default_or_model_override() {
+    fn provider_uses_codex_terra_default_or_model_override() {
         use crate::config::cli::ProviderType;
         use crate::provider::LumenProvider;
 
         let provider = LumenProvider::new(ProviderType::Pi, None, None).unwrap();
-        assert_eq!(provider.to_string(), "pi (CLI) (default)");
+        assert_eq!(
+            provider.to_string(),
+            "pi (CLI) (openai-codex/gpt-6.1-terra)"
+        );
+        match &provider.backend {
+            super::super::ProviderBackend::Pi { model } => assert_eq!(model, DEFAULT_MODEL),
+            _ => panic!("expected pi backend"),
+        }
         let provider = LumenProvider::new(
             ProviderType::Pi,
             None,
@@ -115,15 +120,16 @@ mod tests {
 
         #[tokio::test]
         async fn passes_isolation_flags_and_prompt_without_a_shell() {
-            let response = run(shell("printf '%s\\n' \"$@\"; cat"), prompt(), None)
+            let response = run(shell("printf '%s\\n' \"$@\"; cat"), prompt(), DEFAULT_MODEL)
                 .await
                 .unwrap();
             assert_eq!(
                 response,
                 format!(
                     "--print\n--no-session\n--no-tools\n--no-extensions\n--no-skills\n\
-                     --no-prompt-templates\n--no-context-files\n--system-prompt\n{}\n{}",
+                     --no-prompt-templates\n--no-context-files\n--system-prompt\n{}\n--model\n{}\n{}",
                     prompt().system_prompt,
+                    DEFAULT_MODEL,
                     prompt().user_prompt
                 )
             );
@@ -134,7 +140,7 @@ mod tests {
             let response = run(
                 shell("cat >/dev/null; printf '%s\\n' \"$@\""),
                 prompt(),
-                Some("openai/gpt-5-mini:low"),
+                "openai/gpt-5-mini:low",
             )
             .await
             .unwrap();
@@ -150,7 +156,7 @@ mod tests {
             let response = run(
                 shell("head -c 100000 /dev/zero | tr '\\0' x; cat >/dev/null; echo warning >&2"),
                 prompt,
-                None,
+                DEFAULT_MODEL,
             )
             .await
             .unwrap();
@@ -162,7 +168,7 @@ mod tests {
             let error = run(
                 shell("echo partial; echo 'Please log in' >&2; exit 7"),
                 prompt(),
-                None,
+                DEFAULT_MODEL,
             )
             .await
             .unwrap_err();
@@ -173,9 +179,13 @@ mod tests {
 
         #[tokio::test]
         async fn rejects_empty_output() {
-            let error = run(shell("cat >/dev/null; printf ' \\n'"), prompt(), None)
-                .await
-                .unwrap_err();
+            let error = run(
+                shell("cat >/dev/null; printf ' \\n'"),
+                prompt(),
+                DEFAULT_MODEL,
+            )
+            .await
+            .unwrap_err();
             assert!(matches!(error, ProviderError::NoCompletionChoice));
         }
     }
